@@ -1,6 +1,7 @@
 from flask import Flask, request
 import time
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -68,6 +69,7 @@ HTML_TEMPLATE = """
             padding: 0;
             box-sizing: border-box;
             font-family: 'Roboto', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -75,35 +77,38 @@ HTML_TEMPLATE = """
             color: var(--text-color);
             min-height: 100vh;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
+            padding: 16px 0;
         }
 
         .container {
             width: 100%;
-            max-width: 480px;
-            padding: 20px;
+            max-width: 100%;
+            padding: 12px;
         }
 
         .converter-card {
             background-color: var(--card-bg);
             border-radius: 16px;
-            padding: 30px;
+            padding: 20px;
             box-shadow: var(--card-shadow);
+            margin-bottom: 16px;
         }
 
         h1 {
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             color: var(--text-color);
             text-align: center;
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
         }
 
         .converter-form {
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            gap: 20px;
+            margin-bottom: 24px;
         }
 
         .input-group {
@@ -113,20 +118,22 @@ HTML_TEMPLATE = """
         }
 
         label {
-            font-size: 14px;
+            font-size: 16px;
             color: var(--text-secondary);
             font-weight: 500;
+            margin-left: 4px;
         }
 
         input, select {
-            height: 48px;
-            border-radius: 8px;
+            height: 56px;
+            border-radius: 12px;
             border: 1px solid var(--border-color);
             background-color: var(--input-bg);
             color: var(--text-color);
-            padding: 0 12px;
-            font-size: 16px;
+            padding: 0 16px;
+            font-size: 18px;
             transition: border 0.2s;
+            width: 100%;
         }
 
         input:focus, select:focus {
@@ -138,15 +145,14 @@ HTML_TEMPLATE = """
             appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a0a0a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 12px center;
-            padding-right: 36px;
+            background-position: right 16px center;
+            padding-right: 48px;
         }
 
         .all-currencies {
-            margin-top: 20px;
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
+            grid-template-columns: 1fr;
+            gap: 12px;
             overflow: hidden;
             max-width: 100%;
         }
@@ -154,8 +160,10 @@ HTML_TEMPLATE = """
         .currency-card {
             background-color: var(--input-bg);
             border-radius: 12px;
-            padding: 16px;
-            text-align: center;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             transition: all 0.2s;
             overflow: hidden;
@@ -164,28 +172,53 @@ HTML_TEMPLATE = """
 
         .currency-card.active {
             background-color: var(--accent-color);
-            transform: translateY(-2px);
         }
 
-        .currency-card:hover {
-            transform: translateY(-2px);
-            cursor: pointer;
+        .currency-card:active {
+            transform: scale(0.98);
+        }
+
+        .currency-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .currency-name {
+            font-size: 16px;
+            color: var(--text-secondary);
         }
 
         .currency-amount {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 700;
-            margin-top: 8px;
             color: var(--text-color);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .currency-name {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: 4px;
+        @media (max-width: 380px) {
+            .container {
+                padding: 8px;
+            }
+
+            .converter-card {
+                padding: 16px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            input, select {
+                height: 48px;
+                font-size: 16px;
+            }
+
+            .currency-amount {
+                font-size: 20px;
+            }
         }
     </style>
 </head>
@@ -196,7 +229,7 @@ HTML_TEMPLATE = """
             <div class="converter-form">
                 <div class="input-group">
                     <label for="amount">Amount</label>
-                    <input type="number" id="amount" placeholder="Enter amount" min="0" step="any" value="0">
+                    <input type="number" id="amount" placeholder="Enter amount" min="0" step="any" value="0" inputmode="decimal">
                 </div>
                 
                 <div class="input-group">
@@ -211,18 +244,24 @@ HTML_TEMPLATE = """
             
             <div class="all-currencies">
                 <div class="currency-card" data-currency="stars">
-                    <div class="currency-amount" id="stars-amount">0</div>
-                    <div class="currency-name">Stars</div>
+                    <div class="currency-info">
+                        <div class="currency-name">Stars</div>
+                        <div class="currency-amount" id="stars-amount">0</div>
+                    </div>
                 </div>
                 
                 <div class="currency-card" data-currency="ton">
-                    <div class="currency-amount" id="ton-amount">0</div>
-                    <div class="currency-name">TON</div>
+                    <div class="currency-info">
+                        <div class="currency-name">TON</div>
+                        <div class="currency-amount" id="ton-amount">0</div>
+                    </div>
                 </div>
                 
                 <div class="currency-card" data-currency="usdt">
-                    <div class="currency-amount" id="usdt-amount">0</div>
-                    <div class="currency-name">USDT</div>
+                    <div class="currency-info">
+                        <div class="currency-name">USDT</div>
+                        <div class="currency-amount" id="usdt-amount">0</div>
+                    </div>
                 </div>
             </div>
         </div>
