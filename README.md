@@ -15,7 +15,7 @@ A simple web application for converting between Stars, TON, and USDT cryptocurre
 1. Clone the repository:
 ```bash
 git clone https://github.com/Th3ryks/TelegramStarsConvert.git
-cd StarsConvert
+cd TelegramStarsConvert
 ```
 
 2. Install dependencies:
