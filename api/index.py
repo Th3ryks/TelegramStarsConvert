@@ -10,18 +10,35 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 class FragmentParser:
+    """Parser for handling currency conversion rates and fetching real-time TON price"""
     def __init__(self):
         self.default_rates = {
-            'stars_to_ton': 0.00519,
+            'stars_to_ton': 0.005432,
             'stars_to_usdt': 0.015,
-            'ton_to_usdt': 2.89,
-            'ton_to_stars': 192.68,
+            'ton_to_usdt': None,
+            'ton_to_stars': None,
             'usdt_to_stars': 66.67,
-            'usdt_to_ton': 0.346
+            'usdt_to_ton': None
         }
         
     def get_current_rates(self):
-        logger.info("Returning default rates")
+        """Fetches current TON rate and calculates all conversion rates"""
+        try:
+            response = requests.get('https://api.split.tg/buy/ton_rate')
+            if response.status_code == 200:
+                ton_rate = response.json()['ton_rate']
+                self.default_rates['ton_to_usdt'] = ton_rate
+                self.default_rates['usdt_to_ton'] = 1 / ton_rate
+                self.default_rates['ton_to_stars'] = 1 / self.default_rates['stars_to_ton']
+            else:
+                logger.error(f"Failed to fetch TON rate. Status code: {response.status_code}")
+        except Exception as e:
+            logger.error(f"Error fetching TON rate: {str(e)}")
+            self.default_rates['ton_to_usdt'] = 2.77
+            self.default_rates['usdt_to_ton'] = 1 / 2.77
+            self.default_rates['ton_to_stars'] = 1 / self.default_rates['stars_to_ton']
+        
+        logger.info("Returning rates with real TON price")
         return self.default_rates
 
 price_parser = FragmentParser()
@@ -33,6 +50,7 @@ rates_cache = {
 }
 
 def get_rates():
+    """Returns current rates from cache or fetches new ones if cache expired"""
     current_time = time.time()
     if rates_cache['rates'] is None or current_time - rates_cache['last_update'] > rates_cache['cache_ttl']:
         rates = price_parser.get_current_rates()
@@ -230,7 +248,7 @@ HTML_TEMPLATE = """
             <div class="converter-form">
                 <div class="input-group">
                     <label for="amount">Amount</label>
-                    <input type="number" id="amount" placeholder="Enter amount" min="0" step="any" value="0" inputmode="decimal">
+                    <input type="number" id="amount" placeholder="Enter amount" min="0" step="any" inputmode="decimal">
                 </div>
                 
                 <div class="input-group">
@@ -247,185 +265,122 @@ HTML_TEMPLATE = """
                 <div class="currency-card" data-currency="stars">
                     <div class="currency-info">
                         <div class="currency-name">Stars</div>
-                        <div class="currency-amount" id="stars-amount">0</div>
+                        <div class="currency-amount" id="stars-amount">-</div>
                     </div>
                 </div>
-                
                 <div class="currency-card" data-currency="ton">
                     <div class="currency-info">
                         <div class="currency-name">TON</div>
-                        <div class="currency-amount" id="ton-amount">0</div>
+                        <div class="currency-amount" id="ton-amount">-</div>
                     </div>
                 </div>
-                
                 <div class="currency-card" data-currency="usdt">
                     <div class="currency-info">
                         <div class="currency-name">USDT</div>
-                        <div class="currency-amount" id="usdt-amount">0</div>
+                        <div class="currency-amount" id="usdt-amount">-</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const amountInput = document.getElementById('amount');
-            const fromCurrencySelect = document.getElementById('from-currency');
-            const currencyCards = document.querySelectorAll('.currency-card');
-            
-            const starsAmount = document.getElementById('stars-amount');
-            const tonAmount = document.getElementById('ton-amount');
-            const usdtAmount = document.getElementById('usdt-amount');
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.enableClosingConfirmation();
+        tg.ready();
 
-            let conversionRates = {
-                'stars_to_ton': 0.00518,
-                'stars_to_usdt': 0.015,
-                'ton_to_stars': 193.05,
-                'ton_to_usdt': 2.896,
-                'usdt_to_stars': 66.67,
-                'usdt_to_ton': 0.345
-            };
+        const amountInput = document.getElementById('amount');
+        const fromCurrencySelect = document.getElementById('from-currency');
+        const starsAmount = document.getElementById('stars-amount');
+        const tonAmount = document.getElementById('ton-amount');
+        const usdtAmount = document.getElementById('usdt-amount');
 
-            async function fetchRates() {
-                try {
-                    const response = await fetch('/rates');
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    const data = await response.json();
-                    conversionRates = data;
-                    console.log("Rates updated:", conversionRates);
-                    updateAllConversions();
-                } catch (error) {
-                    console.error("Failed to fetch rates:", error);
-                }
+        let rates = {};
+        let lastConversion = {
+            amount: 0,
+            fromCurrency: 'stars'
+        };
+
+        async function fetchRates() {
+            try {
+                const response = await fetch('/rates');
+                rates = await response.json();
+            } catch (error) {
+                console.error('Error fetching rates:', error);
+            }
+        }
+
+        function convert(amount, fromCurrency) {
+            if (!rates || amount === '') {
+                starsAmount.textContent = '-';
+                tonAmount.textContent = '-';
+                usdtAmount.textContent = '-';
+                return;
             }
 
-            async function convertViaAPI(fromCurrency, amount) {
-                try {
-                    const response = await fetch('/convert', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            from_currency: fromCurrency,
-                            amount: amount
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    
-                    const data = await response.json();
-                    return data;
-                } catch (error) {
-                    console.error("Error during API conversion:", error);
-                    return null;
-                }
+            const parsedAmount = parseFloat(amount);
+            if (isNaN(parsedAmount)) {
+                return;
             }
 
-            async function updateAllConversions() {
-                const amount = parseFloat(amountInput.value) || 0;
-                const fromCurrency = fromCurrencySelect.value;
-                
-                currencyCards.forEach(card => {
-                    if (card.getAttribute('data-currency') === fromCurrency) {
-                        card.classList.add('active');
-                    } else {
-                        card.classList.remove('active');
-                    }
-                });
+            let starsValue, tonValue, usdtValue;
 
-                if (amount <= 0) {
-                    starsAmount.textContent = '0';
-                    tonAmount.textContent = '0';
-                    usdtAmount.textContent = '0';
-                    return;
-                }
-
-                try {
-                    const apiResult = await convertViaAPI(fromCurrency, amount);
-                    
-                    if (apiResult && apiResult.result) {
-                        if (apiResult.rates) {
-                            conversionRates = apiResult.rates;
-                        }
-                        
-                        starsAmount.textContent = formatNumber(apiResult.result.stars);
-                        tonAmount.textContent = formatNumber(apiResult.result.ton);
-                        usdtAmount.textContent = formatNumber(apiResult.result.usdt);
-                    } else {
-                        localConversion(fromCurrency, amount);
-                    }
-                } catch (error) {
-                    console.error("Error updating conversions:", error);
-                    localConversion(fromCurrency, amount);
-                }
+            switch (fromCurrency) {
+                case 'stars':
+                    starsValue = parsedAmount;
+                    tonValue = parsedAmount * rates.stars_to_ton;
+                    usdtValue = tonValue * rates.ton_to_usdt;
+                    break;
+                case 'ton':
+                    tonValue = parsedAmount;
+                    starsValue = parsedAmount * rates.ton_to_stars;
+                    usdtValue = parsedAmount * rates.ton_to_usdt;
+                    break;
+                case 'usdt':
+                    usdtValue = parsedAmount;
+                    tonValue = parsedAmount * rates.usdt_to_ton;
+                    starsValue = tonValue * rates.ton_to_stars;
+                    break;
             }
 
-            function localConversion(fromCurrency, amount) {
-                let starsValue, tonValue, usdtValue;
-                
-                if (fromCurrency === 'stars') {
-                    starsValue = amount;
-                    tonValue = amount * conversionRates.stars_to_ton;
-                    usdtValue = amount * conversionRates.stars_to_usdt;
-                } else if (fromCurrency === 'ton') {
-                    starsValue = amount * conversionRates.ton_to_stars;
-                    tonValue = amount;
-                    usdtValue = amount * conversionRates.ton_to_usdt;
-                } else if (fromCurrency === 'usdt') {
-                    starsValue = amount * conversionRates.usdt_to_stars;
-                    tonValue = amount * conversionRates.usdt_to_ton;
-                    usdtValue = amount;
-                }
+            starsAmount.textContent = starsValue.toFixed(2);
+            tonAmount.textContent = tonValue.toFixed(4);
+            usdtAmount.textContent = usdtValue.toFixed(2);
 
-                starsAmount.textContent = formatNumber(starsValue);
-                tonAmount.textContent = formatNumber(tonValue);
-                usdtAmount.textContent = formatNumber(usdtValue);
-            }
-
-            function formatNumber(num) {
-                if (!num) return '0';
-                
-                if (num >= 100) {
-                    return num.toFixed(2);
-                } else if (num >= 10) {
-                    return num.toFixed(3);
-                } else if (num >= 1) {
-                    return num.toFixed(4);
+            const cards = document.querySelectorAll('.currency-card');
+            cards.forEach(card => {
+                if (card.dataset.currency === fromCurrency) {
+                    card.classList.add('active');
                 } else {
-                    return num.toFixed(6);
+                    card.classList.remove('active');
                 }
-            }
+            });
+        }
 
-            function initTelegramApp() {
-                if (window.Telegram && window.Telegram.WebApp) {
-                    const webApp = window.Telegram.WebApp;
-                    webApp.ready();
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                    webApp.expand();
-                } else {
-                    console.log("Telegram WebApp not detected, running in normal mode");
-                }
-            }
+        async function init() {
+            await fetchRates();
+            setInterval(fetchRates, 60000);
 
-            amountInput.addEventListener('input', updateAllConversions);
-            fromCurrencySelect.addEventListener('change', updateAllConversions);
-            
-            currencyCards.forEach(card => {
-                card.addEventListener('click', () => {
-                    fromCurrencySelect.value = card.getAttribute('data-currency');
-                    updateAllConversions();
-                });
+            amountInput.addEventListener('input', (e) => {
+                lastConversion.amount = e.target.value;
+                convert(e.target.value, fromCurrencySelect.value);
             });
 
-            fetchRates();
-            initTelegramApp();
-        });
+            fromCurrencySelect.addEventListener('change', (e) => {
+                lastConversion.fromCurrency = e.target.value;
+                convert(amountInput.value, e.target.value);
+            });
+
+            const cards = document.querySelectorAll('.currency-card');
+            cards.forEach(card => {
+                card.addEventListener('click', () => {
+                    fromCurrencySelect.value = card.dataset.currency;
+                    convert(amountInput.value, card.dataset.currency);
+                });
+            });
+        }
+
+        init();
     </script>
 </body>
 </html>
@@ -433,44 +388,45 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def index():
+    """Renders the main currency converter page"""
     return HTML_TEMPLATE
 
 @app.route('/rates')
 def rates_api():
-    return get_rates()
+    """Returns current conversion rates for all supported currencies"""
+    return jsonify(get_rates())
 
 @app.route('/convert', methods=['POST'])
 def convert():
+    """Converts amount between specified currencies using current rates"""
     data = request.get_json()
-    from_currency = data.get('from_currency')
-    amount = float(data.get('amount', 0))
+    amount = float(data['amount'])
+    from_currency = data['from_currency']
+    to_currency = data['to_currency']
     
     rates = get_rates()
+    result = None
     
-    if from_currency == 'stars':
-        stars = amount
-        ton = amount * rates['stars_to_ton']
-        usdt = amount * rates['stars_to_usdt']
-    elif from_currency == 'ton':
-        stars = amount * rates['ton_to_stars']
-        ton = amount
-        usdt = amount * rates['ton_to_usdt']
-    else:  # usdt
-        stars = amount * rates['usdt_to_stars']
-        ton = amount * rates['usdt_to_ton']
-        usdt = amount
+    if from_currency == to_currency:
+        result = amount
+    elif from_currency == 'stars' and to_currency == 'ton':
+        result = amount * rates['stars_to_ton']
+    elif from_currency == 'stars' and to_currency == 'usdt':
+        result = amount * rates['stars_to_usdt']
+    elif from_currency == 'ton' and to_currency == 'stars':
+        result = amount * rates['ton_to_stars']
+    elif from_currency == 'ton' and to_currency == 'usdt':
+        result = amount * rates['ton_to_usdt']
+    elif from_currency == 'usdt' and to_currency == 'stars':
+        result = amount * rates['usdt_to_stars']
+    elif from_currency == 'usdt' and to_currency == 'ton':
+        result = amount * rates['usdt_to_ton']
     
-    return {
-        'result': {
-            'stars': stars,
-            'ton': ton,
-            'usdt': usdt
-        },
-        'rates': rates
-    }
+    return jsonify({'result': result})
 
 @app.route('/ton_rate')
 def ton_rate():
+    """Fetches current TON price in USD from split.tg API"""
     try:
         response = requests.get('https://api.split.tg/buy/ton_rate')
         if response.status_code == 200:
@@ -483,6 +439,4 @@ def ton_rate():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    # Run Flask app
-    port = int(os.environ.get('PORT', 5001))
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    app.run(debug=True) 
