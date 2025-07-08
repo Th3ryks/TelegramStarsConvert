@@ -1,7 +1,8 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import time
 import logging
 import os
+import requests
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -467,6 +468,19 @@ def convert():
         },
         'rates': rates
     }
+
+@app.route('/ton_rate')
+def ton_rate():
+    try:
+        response = requests.get('https://api.split.tg/buy/ton_rate')
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            logger.error(f"Failed to fetch TON rate. Status code: {response.status_code}")
+            return jsonify({"error": "Failed to fetch TON rate"}), 500
+    except Exception as e:
+        logger.error(f"Error fetching TON rate: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     # Run Flask app
