@@ -1,317 +1,317 @@
-from flask import Flask, request, jsonify
 import time
-import logging
-import os
 import requests
+from flask import Flask, render_template_string
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-app = Flask(__name__)
-
-class FragmentParser:
-    """Parser for handling currency conversion rates and fetching real-time TON price"""
+""" --- CURRENCY CONVERTER CLASS --- """
+class CurrencyConverter:
     def __init__(self):
-        self.default_rates = {
-            'stars_to_ton': 0.005432,
-            'stars_to_usdt': 0.015,
-            'ton_to_usdt': None,
-            'ton_to_stars': None,
-            'usdt_to_stars': 66.67,
-            'usdt_to_ton': None
+        self.stars_to_usdt = 0.015
+        self.rates_cache = {
+            'rates': None,
+            'last_update': 0,
+            'cache_ttl': 600
         }
         
-    def get_current_rates(self):
-        """Fetches current TON rate and calculates all conversion rates"""
+    def fetch_ton_rate(self) -> float:
         try:
-            response = requests.get('https://api.split.tg/buy/ton_rate')
+            response = requests.get('https://api.split.tg/buy/ton_rate', timeout=10)
             if response.status_code == 200:
-                ton_rate = response.json()['ton_rate']
-                self.default_rates['ton_to_usdt'] = ton_rate
-                self.default_rates['usdt_to_ton'] = 1 / ton_rate
-                self.default_rates['ton_to_stars'] = 1 / self.default_rates['stars_to_ton']
+                data = response.json()
+                return data['ton_rate']
             else:
-                logger.error(f"Failed to fetch TON rate. Status code: {response.status_code}")
+                print(f"Failed to fetch TON rate. Status code: {response.status_code}")
+                return 3.3
         except Exception as e:
-            logger.error(f"Error fetching TON rate: {str(e)}")
-            self.default_rates['ton_to_usdt'] = 2.77
-            self.default_rates['usdt_to_ton'] = 1 / 2.77
-            self.default_rates['ton_to_stars'] = 1 / self.default_rates['stars_to_ton']
+            print(f"Error fetching TON rate: {str(e)}")
+            return 3.3
+    
+    def get_current_rates(self) -> dict:
+        current_time = time.time()
         
-        logger.info("Returning rates with real TON price")
-        return self.default_rates
+        if (self.rates_cache['rates'] is None or 
+            current_time - self.rates_cache['last_update'] > self.rates_cache['cache_ttl']):
+            
+            ton_rate = self.fetch_ton_rate()
+            
+            rates = {
+                'stars_to_usdt': self.stars_to_usdt,
+                'stars_to_ton': self.stars_to_usdt / ton_rate,
+                'ton_to_usdt': ton_rate,
+                'ton_to_stars': ton_rate / self.stars_to_usdt,
+                'usdt_to_stars': 1 / self.stars_to_usdt,
+                'usdt_to_ton': 1 / ton_rate
+            }
+            
+            self.rates_cache['rates'] = rates
+            self.rates_cache['last_update'] = current_time
+            
+            print("Updated rates with real TON price")
+            return rates
+        else:
+            print("Using cached rates")
+            return self.rates_cache['rates']
 
-price_parser = FragmentParser()
-
-rates_cache = {
-    'rates': None,
-    'last_update': 0,
-    'cache_ttl': 600
-}
-
-def get_rates():
-    """Returns current rates from cache or fetches new ones if cache expired"""
-    current_time = time.time()
-    if rates_cache['rates'] is None or current_time - rates_cache['last_update'] > rates_cache['cache_ttl']:
-        rates = price_parser.get_current_rates()
-        rates_cache['rates'] = rates
-        rates_cache['last_update'] = current_time
-        return rates
-    else:
-        logger.info("Using cached rates")
-        return rates_cache['rates']
-
+""" --- HTML TEMPLATE --- """
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Currency Converter Stars/TON/USDT</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>⭐ Stars Converter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --text-color: #e0e0e0;
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-card: #16213e;
+            --text-primary: #ffffff;
             --text-secondary: #a0a0a0;
-            --border-color: #444;
-            --input-bg: #2d2d2d;
-            --accent-color: #0088cc;
-            --accent-hover: #006da3;
-            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            --accent: #00d4ff;
+            --accent-hover: #00b8e6;
+            --border: #2a2a3e;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Roboto', sans-serif;
-            -webkit-tap-highlight-color: transparent;
+            font-family: 'Inter', sans-serif;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: center;
-            padding: 16px 0;
+            padding: 20px;
         }
 
         .container {
             width: 100%;
-            max-width: 100%;
-            padding: 12px;
+            max-width: 400px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--success) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
         }
 
         .converter-card {
-            background-color: var(--card-bg);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: var(--card-shadow);
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .input-section {
             margin-bottom: 16px;
         }
 
-        h1 {
-            margin-bottom: 20px;
-            color: var(--text-color);
-            text-align: center;
-            font-size: 24px;
-            font-weight: 700;
-        }
-
-        .converter-form {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
         .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+            margin-bottom: 16px;
         }
 
-        label {
-            font-size: 16px;
+        .label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
             color: var(--text-secondary);
-            font-weight: 500;
-            margin-left: 4px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        input, select {
-            height: 56px;
+        .input {
+            width: 100%;
+            height: 48px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
             border-radius: 12px;
-            border: 1px solid var(--border-color);
-            background-color: var(--input-bg);
-            color: var(--text-color);
             padding: 0 16px;
-            font-size: 18px;
-            transition: border 0.2s;
-            width: 100%;
+            font-size: 16px;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
         }
 
-        input:focus, select:focus {
+        .input:focus {
             outline: none;
-            border-color: var(--accent-color);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
         }
 
-        select {
+        .select {
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a0a0a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a0a0a0' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 16px center;
-            padding-right: 48px;
+            background-position: right 20px center;
+            padding-right: 50px;
+            cursor: pointer;
         }
 
-        .all-currencies {
+        .results {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-            overflow: hidden;
-            max-width: 100%;
+            gap: 16px;
         }
 
-        .currency-card {
-            background-color: var(--input-bg);
-            border-radius: 12px;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            transition: all 0.2s;
-            overflow: hidden;
-            width: 100%;
+        .result-card {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 24px;
+            border: 2px solid var(--border);
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
 
-        .currency-card.active {
-            background-color: var(--accent-color);
+        .result-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
         }
 
-        .currency-card:active {
-            transform: scale(0.98);
-        }
-
-        .currency-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
+        .result-card.active {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 255, 136, 0.1) 100%);
         }
 
         .currency-name {
-            font-size: 16px;
+            font-size: 14px;
+            font-weight: 600;
             color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
         }
 
         .currency-amount {
             font-size: 24px;
             font-weight: 700;
-            color: var(--text-color);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            color: var(--text-primary);
         }
 
-        @media (max-width: 380px) {
-            .container {
-                padding: 8px;
-            }
+        /* Disable text selection and copy */
+        html, body, .container, .converter-card, .results, .result-card, input, select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
 
+        @media (max-width: 480px) {
             .converter-card {
-                padding: 16px;
+                padding: 24px;
             }
-
-            h1 {
-                font-size: 20px;
-            }
-
-            input, select {
-                height: 48px;
-                font-size: 16px;
-            }
-
-            .currency-amount {
-                font-size: 20px;
+            
+            .title {
+                font-size: 28px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="header">
+            <h1 class="title">⭐ Stars Converter</h1>
+            <p class="subtitle">Convert Telegram Stars to TON and USDT</p>
+        </div>
+        
         <div class="converter-card">
-            <h1>Currency Converter</h1>
-            <div class="converter-form">
+            <div class="input-section">
                 <div class="input-group">
-                    <label for="amount">Amount</label>
-                    <input type="number" id="amount" placeholder="Enter amount" min="0" step="any" inputmode="decimal">
+                    <label class="label" for="amount">Amount</label>
+                    <input type="number" id="amount" class="input" placeholder="Enter amount" min="0" step="any">
                 </div>
                 
                 <div class="input-group">
-                    <label for="from-currency">Select Currency</label>
-                    <select id="from-currency">
-                        <option value="stars">Stars</option>
-                        <option value="ton">TON</option>
-                        <option value="usdt">USDT</option>
+                    <label class="label" for="currency">From Currency</label>
+                    <select id="currency" class="input select">
+                        <option value="stars">⭐ Stars</option>
+                        <option value="ton">💎 TON</option>
+                        <option value="usdt">💵 USDT</option>
                     </select>
                 </div>
             </div>
             
-            <div class="all-currencies">
-                <div class="currency-card" data-currency="stars">
-                    <div class="currency-info">
-                        <div class="currency-name">Stars</div>
-                        <div class="currency-amount" id="stars-amount">-</div>
-                    </div>
+            <div class="results">
+                <div class="result-card" data-currency="stars">
+                    <div class="currency-name">⭐ Stars</div>
+                    <div class="currency-amount" id="stars-amount">-</div>
                 </div>
-                <div class="currency-card" data-currency="ton">
-                    <div class="currency-info">
-                        <div class="currency-name">TON</div>
-                        <div class="currency-amount" id="ton-amount">-</div>
-                    </div>
+                <div class="result-card" data-currency="ton">
+                    <div class="currency-name">💎 TON</div>
+                    <div class="currency-amount" id="ton-amount">-</div>
                 </div>
-                <div class="currency-card" data-currency="usdt">
-                    <div class="currency-info">
-                        <div class="currency-name">USDT</div>
-                        <div class="currency-amount" id="usdt-amount">-</div>
-                    </div>
+                <div class="result-card" data-currency="usdt">
+                    <div class="currency-name">💵 USDT</div>
+                    <div class="currency-amount" id="usdt-amount">-</div>
                 </div>
             </div>
         </div>
     </div>
+    
     <script>
-        let tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.enableClosingConfirmation();
-        tg.ready();
+        let tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.expand();
+            tg.ready();
+        }
+
+        /* Disable copy/paste and context menu */
+        document.addEventListener('copy', (e) => e.preventDefault());
+        document.addEventListener('cut', (e) => e.preventDefault());
+        document.addEventListener('paste', (e) => e.preventDefault());
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('selectstart', (e) => e.preventDefault());
+        document.addEventListener('dragstart', (e) => e.preventDefault());
+        document.addEventListener('keydown', (e) => {
+            const key = (e.key || '').toLowerCase();
+            if ((e.ctrlKey || e.metaKey) && ['c', 'x', 'a', 's', 'p'].includes(key)) {
+                e.preventDefault();
+            }
+        });
 
         const amountInput = document.getElementById('amount');
-        const fromCurrencySelect = document.getElementById('from-currency');
+        const currencySelect = document.getElementById('currency');
         const starsAmount = document.getElementById('stars-amount');
         const tonAmount = document.getElementById('ton-amount');
         const usdtAmount = document.getElementById('usdt-amount');
+        const resultCards = document.querySelectorAll('.result-card');
 
-        let rates = {};
-        let lastConversion = {
-            amount: 0,
-            fromCurrency: 'stars'
-        };
+        const rates = {{ rates | tojson }};
 
-        async function fetchRates() {
-            try {
-                const response = await fetch('/rates');
-                rates = await response.json();
-            } catch (error) {
-                console.error('Error fetching rates:', error);
-            }
+        function updateActiveCard(activeCurrency) {
+            resultCards.forEach(card => {
+                if (card.dataset.currency === activeCurrency) {
+                    card.classList.add('active');
+                } else {
+                    card.classList.remove('active');
+                }
+            });
         }
 
         function convert(amount, fromCurrency) {
-            if (!rates || amount === '') {
+            if (!rates || amount === '' || isNaN(parseFloat(amount))) {
                 starsAmount.textContent = '-';
                 tonAmount.textContent = '-';
                 usdtAmount.textContent = '-';
@@ -319,17 +319,13 @@ HTML_TEMPLATE = """
             }
 
             const parsedAmount = parseFloat(amount);
-            if (isNaN(parsedAmount)) {
-                return;
-            }
-
             let starsValue, tonValue, usdtValue;
 
             switch (fromCurrency) {
                 case 'stars':
                     starsValue = parsedAmount;
                     tonValue = parsedAmount * rates.stars_to_ton;
-                    usdtValue = tonValue * rates.ton_to_usdt;
+                    usdtValue = parsedAmount * rates.stars_to_usdt;
                     break;
                 case 'ton':
                     tonValue = parsedAmount;
@@ -339,45 +335,34 @@ HTML_TEMPLATE = """
                 case 'usdt':
                     usdtValue = parsedAmount;
                     tonValue = parsedAmount * rates.usdt_to_ton;
-                    starsValue = tonValue * rates.ton_to_stars;
+                    starsValue = parsedAmount * rates.usdt_to_stars;
                     break;
             }
 
-            starsAmount.textContent = starsValue.toFixed(2);
+            starsAmount.textContent = starsValue.toFixed(0);
             tonAmount.textContent = tonValue.toFixed(4);
-            usdtAmount.textContent = usdtValue.toFixed(2);
+            usdtAmount.textContent = '$' + usdtValue.toFixed(2);
 
-            const cards = document.querySelectorAll('.currency-card');
-            cards.forEach(card => {
-                if (card.dataset.currency === fromCurrency) {
-                    card.classList.add('active');
-                } else {
-                    card.classList.remove('active');
-                }
-            });
+            updateActiveCard(fromCurrency);
         }
 
-        async function init() {
-            await fetchRates();
-            setInterval(fetchRates, 60000);
-
+        function init() {
             amountInput.addEventListener('input', (e) => {
-                lastConversion.amount = e.target.value;
-                convert(e.target.value, fromCurrencySelect.value);
+                convert(e.target.value, currencySelect.value);
             });
 
-            fromCurrencySelect.addEventListener('change', (e) => {
-                lastConversion.fromCurrency = e.target.value;
+            currencySelect.addEventListener('change', (e) => {
                 convert(amountInput.value, e.target.value);
             });
 
-            const cards = document.querySelectorAll('.currency-card');
-            cards.forEach(card => {
+            resultCards.forEach(card => {
                 card.addEventListener('click', () => {
-                    fromCurrencySelect.value = card.dataset.currency;
+                    currencySelect.value = card.dataset.currency;
                     convert(amountInput.value, card.dataset.currency);
                 });
             });
+
+            convert(amountInput.value || '0', currencySelect.value);
         }
 
         init();
@@ -386,57 +371,15 @@ HTML_TEMPLATE = """
 </html>
 """
 
+""" --- FLASK APPLICATION --- """
+app = Flask(__name__)
+converter = CurrencyConverter()
+
 @app.route('/')
 def index():
-    """Renders the main currency converter page"""
-    return HTML_TEMPLATE
+    rates = converter.get_current_rates()
+    return render_template_string(HTML_TEMPLATE, rates=rates)
 
-@app.route('/rates')
-def rates_api():
-    """Returns current conversion rates for all supported currencies"""
-    return jsonify(get_rates())
-
-@app.route('/convert', methods=['POST'])
-def convert():
-    """Converts amount between specified currencies using current rates"""
-    data = request.get_json()
-    amount = float(data['amount'])
-    from_currency = data['from_currency']
-    to_currency = data['to_currency']
-    
-    rates = get_rates()
-    result = None
-    
-    if from_currency == to_currency:
-        result = amount
-    elif from_currency == 'stars' and to_currency == 'ton':
-        result = amount * rates['stars_to_ton']
-    elif from_currency == 'stars' and to_currency == 'usdt':
-        result = amount * rates['stars_to_usdt']
-    elif from_currency == 'ton' and to_currency == 'stars':
-        result = amount * rates['ton_to_stars']
-    elif from_currency == 'ton' and to_currency == 'usdt':
-        result = amount * rates['ton_to_usdt']
-    elif from_currency == 'usdt' and to_currency == 'stars':
-        result = amount * rates['usdt_to_stars']
-    elif from_currency == 'usdt' and to_currency == 'ton':
-        result = amount * rates['usdt_to_ton']
-    
-    return jsonify({'result': result})
-
-@app.route('/ton_rate')
-def ton_rate():
-    """Fetches current TON price in USD from split.tg API"""
-    try:
-        response = requests.get('https://api.split.tg/buy/ton_rate')
-        if response.status_code == 200:
-            return jsonify(response.json())
-        else:
-            logger.error(f"Failed to fetch TON rate. Status code: {response.status_code}")
-            return jsonify({"error": "Failed to fetch TON rate"}), 500
-    except Exception as e:
-        logger.error(f"Error fetching TON rate: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
+""" --- MAIN FUNCTION --- """
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(host='0.0.0.0', port=5000, debug=True)

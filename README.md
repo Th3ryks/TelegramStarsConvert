@@ -1,48 +1,81 @@
-# Currency Converter (Stars/TON/USDT)
+# ⭐ Stars Converter
 
-A simple web application for converting between Stars, TON, and USDT cryptocurrencies.
+🚀 A modern, asynchronous web application for converting Telegram Stars to TON and USDT currencies with real-time exchange rates.
 
-## Features
+## ✨ Features
 
-- Real-time currency conversion
-- Support for Stars, TON, and USDT
-- Clean and modern dark theme interface
-- Telegram Mini App integration
-- Responsive design
+- 🔄 **Real-time conversion** with live TON exchange rates
+- 💰 **Fixed Stars rate** - 1 Star = $0.015 USD
+- 🎨 **Modern UI** with beautiful dark theme and animations
+- 📱 **Telegram Web App** integration ready
+- ⚡ **Async/await** architecture for optimal performance
+- 📊 **Caching system** for efficient API calls
 
-## Installation
+## 🛠️ Tech Stack
 
-1. Clone the repository:
-```bash
-git clone https://github.com/Th3ryks/TelegramStarsConvert.git
-cd TelegramStarsConvert
-```
+- **Python 3.11+** with asyncio
+- **aiohttp** for async web server
+- **Environment variables** for configuration
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+## 🚀 Quick Start
 
-3. Run the application:
-```bash
-python api/index.py
-```
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Th3ryks/TelegramStarsConvert.git
+   cd TelegramStarsConvert
+   ```
 
-## Usage
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-1. Enter the amount you want to convert
-2. Select the source currency (Stars, TON, or USDT)
-3. The converted amounts will be displayed automatically in all currencies
+3. **Run the application**
+   ```bash
+   python main.py
+   ```
 
-## API Endpoints
+4. **Open in browser**
+   ```
+   http://localhost:5000
+   ```
 
-- `GET /rates` - Get current exchange rates
-- `POST /convert` - Convert between currencies
-  - Request body: `{ "from_currency": "stars", "amount": 100 }`
-  - Supported currencies: "stars", "ton", "usdt"
+## ⚙️ Configuration
 
-## Technologies Used
+The application runs with default settings:
+- **Host**: `0.0.0.0`
+- **Port**: `5000`
+- **TON Rate API**: `https://api.split.tg/buy/ton_rate`
+- **Cache TTL**: `300 seconds`
+- **Stars to USDT Rate**: `0.015`
 
-- Python (Flask)
-- HTML/CSS/JavaScript
-- Telegram Mini App API 
+## 📡 API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | 🏠 Main converter interface |
+
+## 💱 Exchange Rates
+
+- **Stars to USD**: Fixed at $0.015 per star
+- **TON to USD**: Real-time from Split.tg API
+- **Stars to TON**: Calculated dynamically based on TON/USD rate
+
+## 🎨 Interface Features
+
+- 🌙 **Dark theme** optimized for Telegram
+- 📱 **Responsive design** for all devices
+- ✨ **Smooth animations** and hover effects
+- 🎯 **Intuitive UX** with click-to-select currency cards
+- 💫 **Gradient accents** and modern typography
+
+## 🔒 Security
+
+- ✅ Environment variables for sensitive data
+- ✅ No hardcoded secrets or tokens
+- ✅ Proper error handling and logging
+- ✅ Input validation and sanitization
+
+## 📝 License
+
+MIT License - feel free to use this project for your own purposes! 🎉
