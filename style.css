@@ -194,6 +194,13 @@ body::before {
     animation: shake 0.5s ease-in-out;
 }
 
+.custom-input.error {
+    border-color: #ff4444 !important;
+    background-color: rgba(255, 68, 68, 0.1) !important;
+    box-shadow: 0 0 0 2px rgba(255, 68, 68, 0.3) !important;
+    animation: shake 1s ease-in-out;
+}
+
 @keyframes shake {
     0%, 100% { transform: translateX(0); }
     10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }

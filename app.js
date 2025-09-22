@@ -68,15 +68,37 @@ async function fetchRates() {
 }
 
 function getInputValue() {
-    const text = amountInput.textContent.trim();
+    const text = amountInput.value.trim();
     return text === '' ? '' : text;
 }
 
 function setInputValue(value) {
-    amountInput.textContent = value;
+    amountInput.value = value;
 }
 
 function validateInput(value) {
+    const numValue = parseFloat(value);
+    if (numValue > MAX_INPUT_VALUE) {
+        amountInput.classList.add('error');
+        
+        // Vibration if supported
+        if (navigator.vibrate) {
+            navigator.vibrate([100, 50, 100]);
+        }
+        
+        // Remove error class after animation (1 second)
+        setTimeout(() => {
+            amountInput.classList.remove('error');
+        }, 1000);
+        
+        // Set input to max value
+        setInputValue(MAX_INPUT_VALUE.toString());
+        return MAX_INPUT_VALUE;
+    }
+    return numValue;
+}
+
+function checkInputLimit(value) {
     const numValue = parseFloat(value);
     if (numValue > MAX_INPUT_VALUE) {
         amountInput.classList.add('error');
@@ -91,11 +113,9 @@ function validateInput(value) {
             amountInput.classList.remove('error');
         }, 500);
         
-        // Set input to max value
-        setInputValue(MAX_INPUT_VALUE.toString());
-        return MAX_INPUT_VALUE;
+        return true;
     }
-    return numValue;
+    return false;
 }
 
 function updateActiveCard(activeCurrency) {
@@ -111,7 +131,8 @@ function updateActiveCard(activeCurrency) {
 function formatNumber(num, decimals) {
     if (num === 0) return '0';
     const fixed = num.toFixed(decimals);
-    return fixed.replace(/\.?0+$/, '');
+    // Remove trailing zeros after decimal point, but keep integer part
+    return fixed.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
 }
 
 function convert(amount) {
@@ -163,7 +184,7 @@ function filterNumericInput(e) {
     }
     
     // Get current text and selection
-    const currentText = amountInput.textContent || '';
+    const currentText = amountInput.value || '';
     const key = e.key;
     
     // Allow numbers and one decimal point
@@ -177,15 +198,25 @@ function filterNumericInput(e) {
         e.preventDefault();
         return;
     }
+    
+    // Check if adding this character would exceed the limit
+    if (/[0-9]/.test(key)) {
+        const testValue = parseFloat(currentText + key);
+        if (testValue > MAX_INPUT_VALUE) {
+            checkInputLimit(testValue.toString());
+            e.preventDefault();
+            return;
+        }
+    }
 }
 
 async function init() {
     await fetchRates();
     
-    // Handle input events for custom contenteditable div
+    // Handle input events for input field
     amountInput.addEventListener('input', () => {
         // Clean up non-numeric characters in real-time
-        let currentText = amountInput.textContent || '';
+        let currentText = amountInput.value || '';
         let cleanText = currentText.replace(/[^0-9.]/g, '');
         
         // Ensure only one decimal point
@@ -194,49 +225,29 @@ async function init() {
             cleanText = parts[0] + '.' + parts.slice(1).join('');
         }
         
+        // Check if input exceeds limit
+        const numValue = parseFloat(cleanText);
+        if (numValue > MAX_INPUT_VALUE) {
+            // Show error and vibration
+            checkInputLimit(cleanText);
+            // Set to max value
+            cleanText = MAX_INPUT_VALUE.toString();
+        }
+        
         // Update content if it was cleaned
         if (currentText !== cleanText) {
-            const cursorPos = window.getSelection().getRangeAt(0).startOffset;
-            amountInput.textContent = cleanText;
-            
+            const cursorPos = amountInput.selectionStart;
+            amountInput.value = cleanText;
             // Restore cursor position
-            const range = document.createRange();
-            const sel = window.getSelection();
-            const textNode = amountInput.firstChild;
-            if (textNode) {
-                const newPos = Math.min(cursorPos, cleanText.length);
-                range.setStart(textNode, newPos);
-                range.collapse(true);
-                sel.removeAllRanges();
-                sel.addRange(range);
-            }
+            const newPos = Math.min(cursorPos, cleanText.length);
+            amountInput.setSelectionRange(newPos, newPos);
         }
         
         const value = getInputValue();
         convert(value);
     });
     
-    // Handle focus to show cursor
-    amountInput.addEventListener('focus', () => {
-        if (amountInput.textContent === '') {
-            // Create a text node if empty to allow cursor positioning
-            amountInput.textContent = '';
-        }
-        // Ensure cursor is positioned at the end
-        setTimeout(() => {
-            const range = document.createRange();
-            const sel = window.getSelection();
-            range.selectNodeContents(amountInput);
-            range.collapse(false);
-            sel.removeAllRanges();
-            sel.addRange(range);
-        }, 0);
-    });
-    
-    // Handle click to focus and position cursor
-    amountInput.addEventListener('click', () => {
-        amountInput.focus();
-    });
+
     
     // Filter numeric input
     amountInput.addEventListener('keydown', filterNumericInput);
