@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⭐ Stars Converter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title"><svg width="24" height="24" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle; margin-right: 8px;"><g clip-path="url(#clip0_4913_7387)"><mask id="svg-mdgig6tw3bc1mlcljdv-mask1" maskUnits="userSpaceOnUse" x="-2" y="-2" width="24" height="24" style="mask-type: luminance;"><path d="M21.416 -1.42493H-1.08398V21.0751H21.416V-1.42493Z" fill="white"></path></mask><g mask="url(#svg-mdgig6tw3bc1mlcljdv-mask1)"><mask id="svg-mdgig6tw3bc1mlcljdv-mask2" maskUnits="userSpaceOnUse" x="-2" y="-2" width="24" height="24" style="mask-type: luminance;"><path d="M-1.08398 -1.42493H21.416V21.0751H-1.08398V-1.42493Z" fill="white"></path></mask><g mask="url(#svg-mdgig6tw3bc1mlcljdv-mask2)"><path d="M7.26843 6.25162L9.28943 2.22541C9.52311 1.76121 10.0884 1.5749 10.5494 1.80857C10.7294 1.90015 10.8747 2.04857 10.9662 2.23172L12.8767 6.11583C13.0314 6.43477 13.3378 6.64951 13.6883 6.69056L17.6829 7.17055C18.2261 7.23686 18.6145 7.73264 18.5513 8.27894C18.5229 8.50314 18.4218 8.71156 18.2608 8.86945L15.0998 11.9862C14.9703 12.1125 14.9103 12.2894 14.9324 12.4694L15.4598 16.6756C15.5356 17.2787 15.1093 17.8282 14.5093 17.904C14.2819 17.9324 14.0546 17.8913 13.8525 17.7808L10.5147 15.9556C10.2715 15.823 9.98099 15.8198 9.73784 15.9461L6.27687 17.7208C5.79057 17.9703 5.1969 17.7745 4.94743 17.285C4.8527 17.1019 4.82112 16.8966 4.84954 16.6945L5.12427 14.7619C5.26006 13.8177 5.84425 12.9967 6.69055 12.5641L10.5305 10.6031C10.6315 10.5526 10.6726 10.4263 10.622 10.322C10.581 10.2431 10.4957 10.1957 10.4073 10.2084L5.70847 10.8841C4.99164 10.9852 4.26535 10.7831 3.7001 10.322L2.13698 9.04629C1.69173 8.68314 1.6191 8.02 1.98225 7.57159C2.15277 7.36317 2.39592 7.22739 2.66118 7.19265L6.6716 6.67793C6.92739 6.64319 7.15159 6.4853 7.26843 6.25162Z" fill="url(#svg-mdgig6tw3bc1mlcljdv-gradient1)"></path><defs><linearGradient id="svg-mdgig6tw3bc1mlcljdv-gradient1" x1="10" y1="2" x2="10" y2="18" gradientUnits="userSpaceOnUse"><stop stop-color="#FFD700"/><stop offset="1" stop-color="#FFA500"/></linearGradient></defs></g></g></g></svg> Stars Converter</h1>
+        </div>
+
+        <div class="converter-card">
+            <div class="input-section">
+                <div class="input-group">
+                    <label class="label" for="amount">Amount</label>
+                    <div class="custom-input-wrapper">
+                        <div id="amount" class="custom-input" contenteditable="true" data-placeholder="Enter amount"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results">
+                <div class="result-card" data-currency="stars">
+                    <div class="currency-name"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle; margin-right: 6px;"><g clip-path="url(#clip0_stars)"><path d="M7.26843 6.25162L9.28943 2.22541C9.52311 1.76121 10.0884 1.5749 10.5494 1.80857C10.7294 1.90015 10.8747 2.04857 10.9662 2.23172L12.8767 6.11583C13.0314 6.43477 13.3378 6.64951 13.6883 6.69056L17.6829 7.17055C18.2261 7.23686 18.6145 7.73264 18.5513 8.27894C18.5229 8.50314 18.4218 8.71156 18.2608 8.86945L15.0998 11.9862C14.9703 12.1125 14.9103 12.2894 14.9324 12.4694L15.4598 16.6756C15.5356 17.2787 15.1093 17.8282 14.5093 17.904C14.2819 17.9324 14.0546 17.8913 13.8525 17.7808L10.5147 15.9556C10.2715 15.823 9.98099 15.8198 9.73784 15.9461L6.27687 17.7208C5.79057 17.9703 5.1969 17.7745 4.94743 17.285C4.8527 17.1019 4.82112 16.8966 4.84954 16.6945L5.12427 14.7619C5.26006 13.8177 5.84425 12.9967 6.69055 12.5641L10.5305 10.6031C10.6315 10.5526 10.6726 10.4263 10.622 10.322C10.581 10.2431 10.4957 10.1957 10.4073 10.2084L5.70847 10.8841C4.99164 10.9852 4.26535 10.7831 3.7001 10.322L2.13698 9.04629C1.69173 8.68314 1.6191 8.02 1.98225 7.57159C2.15277 7.36317 2.39592 7.22739 2.66118 7.19265L6.6716 6.67793C6.92739 6.64319 7.15159 6.4853 7.26843 6.25162Z" fill="#FFD700"></path><defs><clipPath id="clip0_stars"><rect width="20" height="20" fill="white"/></clipPath></defs></svg> Stars</div>
+                    <div class="currency-amount" id="stars-amount">-</div>
+                </div>
+                <div class="result-card" data-currency="ton">
+                    <div class="currency-name"><svg width="16" height="16" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle; margin-right: 6px;"><path d="M28 56C43.464 56 56 43.464 56 28C56 12.536 43.464 0 28 0C12.536 0 0 12.536 0 28C0 43.464 12.536 56 28 56Z" fill="#0098EA"></path><path d="M37.5603 15.6277H18.4386C14.9228 15.6277 12.6944 19.4202 14.4632 22.4861L26.2644 42.9409C27.0345 44.2765 28.9644 44.2765 29.7345 42.9409L41.5381 22.4861C43.3045 19.4251 41.0761 15.6277 37.5627 15.6277H37.5603ZM26.2548 36.8068L23.6847 31.8327L17.4833 20.7414C17.0742 20.0315 17.5795 19.1218 18.4362 19.1218H26.2524V36.8092L26.2548 36.8068ZM38.5108 20.739L32.3118 31.8351L29.7417 36.8068V19.1194H37.5579C38.4146 19.1194 38.9199 20.0291 38.5108 20.739Z" fill="white"></path></svg> TON</div>
+                    <div class="currency-amount" id="ton-amount">-</div>
+                </div>
+                <div class="result-card" data-currency="usdt">
+                    <div class="currency-name"><svg width="16" height="16" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle; margin-right: 6px;"><g fill="none" fill-rule="evenodd"><circle cx="16" cy="16" r="16" fill="#26A17B"></circle><path fill="#FFF" d="M17.922 17.383v-.002c-.11.008-.677.042-1.942.042-1.01 0-1.721-.03-1.971-.042v.003c-3.888-.171-6.79-.848-6.79-1.658 0-.809 2.902-1.486 6.79-1.66v2.644c.254.018.982.061 1.988.061 1.207 0 1.812-.05 1.925-.06v-2.643c3.88.173 6.775.85 6.775 1.658 0 .81-2.895 1.485-6.775 1.657m0-3.59v-2.366h5.414V7.819H8.595v3.608h5.414v2.365c-4.4.202-7.709 1.074-7.709 2.118 0 1.044 3.309 1.915 7.709 2.118v7.582h3.913v-7.584c4.393-.202 7.694-1.073 7.694-2.116 0-1.043-3.301-1.914-7.694-2.117"></path></g></svg> USDT</div>
+                    <div class="currency-amount" id="usdt-amount">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
