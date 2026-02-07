@@ -36,14 +36,19 @@ async function fetchTonRate() {
         const response = await fetch('https://api.split.tg/buy/ton_rate');
         if (response.ok) {
             const data = await response.json();
-            return data.ton_rate;
+            if (data.ok) {
+                return data.message;
+            } else {
+                console.error('API error:', data.error_message);
+                return 1.35; // fallback rate
+            }
         } else {
             console.error('Failed to fetch TON rate');
-            return 3.15; // fallback rate
+            return 1.35; // fallback rate
         }
     } catch (error) {
         console.error('Error fetching TON rate:', error);
-        return 3.15; // fallback rate
+        return 1.35; // fallback rate
     }
 }
 
@@ -51,7 +56,7 @@ async function fetchTonRate() {
 async function fetchRates() {
     try {
         const tonRate = await fetchTonRate();
-        
+
         rates = {
             stars_to_usdt: STARS_TO_USDT,
             stars_to_ton: STARS_TO_USDT / tonRate,
@@ -60,7 +65,7 @@ async function fetchRates() {
             usdt_to_stars: 1 / STARS_TO_USDT,
             usdt_to_ton: 1 / tonRate
         };
-        
+
         console.log('Rates updated:', rates);
     } catch (error) {
         console.error('Error calculating rates:', error);
@@ -80,17 +85,17 @@ function validateInput(value) {
     const numValue = parseFloat(value);
     if (numValue > MAX_INPUT_VALUE) {
         amountInput.classList.add('error');
-        
+
         // Vibration if supported
         if (navigator.vibrate) {
             navigator.vibrate([100, 50, 100]);
         }
-        
+
         // Remove error class after animation (1 second)
         setTimeout(() => {
             amountInput.classList.remove('error');
         }, 1000);
-        
+
         // Set input to max value
         setInputValue(MAX_INPUT_VALUE.toString());
         return MAX_INPUT_VALUE;
@@ -102,17 +107,17 @@ function checkInputLimit(value) {
     const numValue = parseFloat(value);
     if (numValue > MAX_INPUT_VALUE) {
         amountInput.classList.add('error');
-        
+
         // Vibration if supported
         if (navigator.vibrate) {
             navigator.vibrate([100, 50, 100]);
         }
-        
+
         // Remove error class after animation
         setTimeout(() => {
             amountInput.classList.remove('error');
         }, 500);
-        
+
         return true;
     }
     return false;
@@ -138,7 +143,7 @@ function formatNumber(num, decimals) {
 function convert(amount) {
     // Always update active card, even without amount
     updateActiveCard(currentCurrency);
-    
+
     if (!rates || amount === '' || isNaN(parseFloat(amount))) {
         starsAmount.textContent = '0';
         tonAmount.textContent = '0';
@@ -182,23 +187,23 @@ function filterNumericInput(e) {
         (e.keyCode === 88 && (e.ctrlKey || e.metaKey))) {
         return;
     }
-    
+
     // Get current text and selection
     const currentText = amountInput.value || '';
     const key = e.key;
-    
+
     // Allow numbers and one decimal point
     if (!/[0-9.]/.test(key)) {
         e.preventDefault();
         return;
     }
-    
+
     // Prevent multiple decimal points
     if (key === '.' && currentText.includes('.')) {
         e.preventDefault();
         return;
     }
-    
+
     // Check if adding this character would exceed the limit
     if (/[0-9]/.test(key)) {
         const testValue = parseFloat(currentText + key);
@@ -212,19 +217,19 @@ function filterNumericInput(e) {
 
 async function init() {
     await fetchRates();
-    
+
     // Handle input events for input field
     amountInput.addEventListener('input', () => {
         // Clean up non-numeric characters in real-time
         let currentText = amountInput.value || '';
         let cleanText = currentText.replace(/[^0-9.]/g, '');
-        
+
         // Ensure only one decimal point
         const parts = cleanText.split('.');
         if (parts.length > 2) {
             cleanText = parts[0] + '.' + parts.slice(1).join('');
         }
-        
+
         // Check if input exceeds limit
         const numValue = parseFloat(cleanText);
         if (numValue > MAX_INPUT_VALUE) {
@@ -233,7 +238,7 @@ async function init() {
             // Set to max value
             cleanText = MAX_INPUT_VALUE.toString();
         }
-        
+
         // Update content if it was cleaned
         if (currentText !== cleanText) {
             const cursorPos = amountInput.selectionStart;
@@ -242,32 +247,32 @@ async function init() {
             const newPos = Math.min(cursorPos, cleanText.length);
             amountInput.setSelectionRange(newPos, newPos);
         }
-        
+
         const value = getInputValue();
         convert(value);
     });
-    
 
-    
+
+
     // Filter numeric input
     amountInput.addEventListener('keydown', filterNumericInput);
-    
+
     // Handle paste events
     amountInput.addEventListener('paste', (e) => {
         e.preventDefault();
         const paste = (e.clipboardData || window.clipboardData).getData('text');
         let numericPaste = paste.replace(/[^0-9.]/g, '');
-        
+
         // Ensure only one decimal point
         const parts = numericPaste.split('.');
         if (parts.length > 2) {
             numericPaste = parts[0] + '.' + parts.slice(1).join('');
         }
-        
+
         if (numericPaste) {
             // Clear current content and insert new
             amountInput.textContent = numericPaste;
-            
+
             // Move cursor to end
             const range = document.createRange();
             const sel = window.getSelection();
@@ -275,7 +280,7 @@ async function init() {
             range.collapse(false);
             sel.removeAllRanges();
             sel.addRange(range);
-            
+
             // Trigger input event
             const inputEvent = new Event('input', { bubbles: true });
             amountInput.dispatchEvent(inputEvent);
